@@ -1,9 +1,9 @@
-﻿using System.Net;
+﻿using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
 Console.WriteLine("Wähle (1) für Host, (2) für Client.");
-
 string answer = Console.ReadLine();
 
 if (answer == "1") { StarteHost(); }
@@ -11,13 +11,12 @@ else if (answer == "2") { StarteClient(); }
 else { Console.WriteLine("Ungültige Eingabe."); }
 
 
+// --- Funktionen --- \\
 
-// -- Funktionen -- \\
 
 void StarteHost()
 {
     Console.WriteLine("Server wird gestartet...");
-
 
     // 1. Der "Türsteher"
     // IPAddress.Any -> hört auf alle Netzwerk-Eingänge // 12345 -> Port
@@ -37,37 +36,25 @@ void StarteHost()
     // ---------------------------------------------------------------------
 
 
-    // 1. Stream erstellen
     NetworkStream stream = client.GetStream();
-
-    // 2. Leerer "Eimer" (Buffer) mit 1024 Bytes
-    byte[] eimer = new byte[1024];
 
     Console.WriteLine("Warte auf Nachricht vom Client...");
 
 
     while (client.Connected)
     {
-        // 3. Warten auf Nachricht
-        int anzahlBytes = stream.Read(eimer, 0, eimer.Length);
-
-        if (anzahlBytes == 0) { break; } // <- wenn Bytes = 0, Verbindung wurde geschlossen
-
-
-        // 4. Bytes -> Text
-        string empfangeneNachricht = Encoding.UTF8.GetString(eimer, 0, anzahlBytes);
-
-        Console.WriteLine($"Eingehende Nachricht: {empfangeneNachricht}");
+        // -) Nachricht erhalten
+        if (!getMessage(stream)) { break; }
     }
 
 
-    // 5. Verbindung schließen
+    // -) Verbindung schließen
     stream.Close();
     client.Close();
-    
-    
+
+
     // ---------------------------------------------------------------------
-    // Fenster nicht sofort beenden
+    // -) Fenster nicht sofort beenden
     Console.WriteLine("Drücke ENTER zum Beenden.");
     Console.ReadLine();
 }
@@ -78,43 +65,34 @@ void StarteClient()
 
     try
     {
-        // 1. Client starten
+        // -) Client starten
         TcpClient client = new TcpClient();
-        // 2. Versuchen den Server zu erreichen, per localhost (127.0.0.1) auf Port 12345
         client.Connect("127.0.0.1", 12345);
 
         Console.WriteLine("Erfolgreich mit dem Server verbunden");
+        
+
         // ---------------------------------------------------------------------
 
-        // 1. NetworkStream erstellen
+
         NetworkStream stream = client.GetStream();
 
+        // -) Nachricht senden
+        sendMessage(stream, null);
 
         while (client.Connected)
         {
-            Console.WriteLine("Gib deine Nachricht ein (oder \"q\" um die Verbindung zu schließen):");
-            string answer = Console.ReadLine();
-
-            if (answer == "q") { break; }
-
-
-            // 2. Nachricht -> Bytes
-            byte[] daten = Encoding.UTF8.GetBytes(answer);
-
-
-            // 3. Paket schicken
-            stream.Write(daten, 0, daten.Length);
-
-            // Console.WriteLine($"Nachricht: \"{answer}\" gesendet.");
+            // -) Nachricht erhalten
+            if (!getMessage(stream)) { break; }
         }
 
 
-        // 5. Verbindung schließen
         stream.Close();
         client.Close();
 
+
         // ---------------------------------------------------------------------
-        // Fenster nicht sofort beenden
+        // -) Fenster nicht sofort beenden
         Console.WriteLine("Drücke ENTER zum Beenden.");
         Console.ReadLine();
     }
@@ -124,4 +102,88 @@ void StarteClient()
         Console.ReadLine();
     }
 
+}
+
+void sendMessage(NetworkStream stream, string? message)
+{
+    string answer;
+
+    if (message == null)
+    {
+        Console.WriteLine("\n\nGib deine Nachricht ein (oder \"q\" um die Verbindung zu schließen):");
+        answer = Console.ReadLine();
+    }
+    else
+    {
+        answer = message;
+    }
+
+    // -) Nachricht -> Bytes
+    byte[] daten = Encoding.UTF8.GetBytes(answer);
+
+    // -) Paket schicken
+    stream.Write(daten, 0, daten.Length);
+    Console.WriteLine($"Nachricht: \"{answer}\" gesendet.");
+}
+
+bool getMessage(NetworkStream stream)
+{
+    byte[] eimer = new byte[1024];
+
+    // -) Warten auf Nachricht
+    int anzahlBytes = stream.Read(eimer, 0, eimer.Length);
+    if (anzahlBytes == 0) { return false; } // wenn Bytes = 0 -> Verbindung wurde geschlossen
+    // Console.WriteLine("Warten auf Nachricht...");
+
+    // -) Bytes -> Text
+    string empfangeneNachricht = Encoding.UTF8.GetString(eimer, 0, anzahlBytes);
+    Console.WriteLine($"Eingehende Nachricht: {empfangeneNachricht}. Wird verarbeitet.");
+
+    // -) Nachricht verarbeiten
+    HandleMessage(stream, empfangeneNachricht);
+
+    return true;
+}
+
+void HandleMessage(NetworkStream stream, string message)
+{
+    string[] parts = message.Split('|');
+    string command = parts[0];
+    int args = 0;
+
+    if (parts.Length > 1)
+    {
+        args = int.Parse(parts[^1]);
+    }
+    //Console.WriteLine($"Command: {command} - args: {args}.");
+
+    switch (command)
+    {
+        case "SCHUSS":
+            // Console.WriteLine("case SCHUSS");
+            sendMessage(stream, checkHit(args));
+            break;
+        case "WASSER":
+        case "TREFFER":
+        case "VERSENKT":
+            // Console.WriteLine("case WASSER/TREFFER/VERSENKT");
+            sendMessage(stream, "OK");
+            break;
+        case "OK":
+            // Console.WriteLine("case OK");
+            sendMessage(stream, null);
+            break;
+        case "UNGÜLTIG":
+            sendMessage(stream, null);
+            break;
+
+        default:
+            sendMessage(stream, "UNGÜLTIG");
+            break;
+    }
+}
+
+string checkHit(int index)
+{
+    return "WASSER";
 }
