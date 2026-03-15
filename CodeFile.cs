@@ -25,14 +25,17 @@ void StarteHost()
 
     // 2. Türsteher -> "mach die Tür auf"
     listener.Start();
-    Console.WriteLine("Server läuft - warte auf Client.");
+    Console.WriteLine("Server läuft, warten auf Client.");
 
     // 3. AcceptTcpClient() -> wartet bis Client kommt.
     TcpClient client = listener.AcceptTcpClient();
 
-    Console.Write(client + " - Client verbunden.");
+    // Console.Write(client + " - Client verbunden.");
     listener.Stop();
+    
+    
     // ---------------------------------------------------------------------
+
 
     // 1. Stream erstellen
     NetworkStream stream = client.GetStream();
@@ -43,14 +46,26 @@ void StarteHost()
     Console.WriteLine("Warte auf Nachricht vom Client...");
 
 
-    // 3. Warten auf Nachricht
-    int anzahlBytes = stream.Read(eimer, 0, eimer.Length);
+    while (client.Connected)
+    {
+        // 3. Warten auf Nachricht
+        int anzahlBytes = stream.Read(eimer, 0, eimer.Length);
 
-    // 4. Bytes -> Text
-    string empfangeneNachricht = Encoding.UTF8.GetString(eimer);
+        if (anzahlBytes == 0) { break; } // <- wenn Bytes = 0, Verbindung wurde geschlossen
 
-    Console.WriteLine($"Eingehende Nachricht: {empfangeneNachricht}");
 
+        // 4. Bytes -> Text
+        string empfangeneNachricht = Encoding.UTF8.GetString(eimer, 0, anzahlBytes);
+
+        Console.WriteLine($"Eingehende Nachricht: {empfangeneNachricht}");
+    }
+
+
+    // 5. Verbindung schließen
+    stream.Close();
+    client.Close();
+    
+    
     // ---------------------------------------------------------------------
     // Fenster nicht sofort beenden
     Console.WriteLine("Drücke ENTER zum Beenden.");
@@ -74,22 +89,37 @@ void StarteClient()
         // 1. NetworkStream erstellen
         NetworkStream stream = client.GetStream();
 
-        string nachricht = "SCHUSS|45";
 
-        // 2. Nachricht -> Bytes
-        byte[] daten = Encoding.UTF8.GetBytes(nachricht);
+        while (client.Connected)
+        {
+            Console.WriteLine("Gib deine Nachricht ein (oder \"q\" um die Verbindung zu schließen):");
+            string answer = Console.ReadLine();
 
-        // 3. Paket schicken
-        stream.Write(daten, 0, daten.Length);
-        Console.WriteLine($"Nachricht: \"{nachricht}\" gesendet.");
+            if (answer == "q") { break; }
+
+
+            // 2. Nachricht -> Bytes
+            byte[] daten = Encoding.UTF8.GetBytes(answer);
+
+
+            // 3. Paket schicken
+            stream.Write(daten, 0, daten.Length);
+
+            // Console.WriteLine($"Nachricht: \"{answer}\" gesendet.");
+        }
+
+
+        // 5. Verbindung schließen
+        stream.Close();
+        client.Close();
 
         // ---------------------------------------------------------------------
         // Fenster nicht sofort beenden
         Console.WriteLine("Drücke ENTER zum Beenden.");
         Console.ReadLine();
     }
-    catch (Exception e) 
-    { 
+    catch (Exception e)
+    {
         Console.WriteLine(e.ToString());
         Console.ReadLine();
     }
