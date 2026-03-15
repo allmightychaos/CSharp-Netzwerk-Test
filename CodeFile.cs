@@ -6,15 +6,15 @@ using System.Text;
 Console.WriteLine("Wähle (1) für Host, (2) für Client.");
 string answer = Console.ReadLine();
 
-if (answer == "1") { StarteHost(); }
-else if (answer == "2") { StarteClient(); }
+if (answer == "1") { await StarteHost(); }
+else if (answer == "2") { await StarteClient(); }
 else { Console.WriteLine("Ungültige Eingabe."); }
 
 
 // --- Funktionen --- \\
 
 
-void StarteHost()
+async Task StarteHost()
 {
     Console.WriteLine("Server wird gestartet...");
 
@@ -44,7 +44,7 @@ void StarteHost()
     while (client.Connected)
     {
         // -) Nachricht erhalten
-        if (!getMessage(stream)) { break; }
+        if (!await getMessage(stream)) { break; }
     }
 
 
@@ -59,7 +59,7 @@ void StarteHost()
     Console.ReadLine();
 }
 
-void StarteClient()
+async Task StarteClient()
 {
     Console.WriteLine("Client wird gestartet...");
 
@@ -83,7 +83,7 @@ void StarteClient()
         while (client.Connected)
         {
             // -) Nachricht erhalten
-            if (!getMessage(stream)) { break; }
+            if (!await getMessage(stream)) { break; }
         }
 
 
@@ -126,12 +126,12 @@ void sendMessage(NetworkStream stream, string? message)
     Console.WriteLine($"Nachricht: \"{answer}\" gesendet.");
 }
 
-bool getMessage(NetworkStream stream)
+async Task<bool> getMessage(NetworkStream stream)
 {
     byte[] eimer = new byte[1024];
 
     // -) Warten auf Nachricht
-    int anzahlBytes = stream.Read(eimer, 0, eimer.Length);
+    int anzahlBytes = await stream.ReadAsync(eimer, 0, eimer.Length);
     if (anzahlBytes == 0) { return false; } // wenn Bytes = 0 -> Verbindung wurde geschlossen
     // Console.WriteLine("Warten auf Nachricht...");
 
