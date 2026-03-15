@@ -27,7 +27,7 @@ async Task StarteHost()
     Console.WriteLine("Server läuft, warten auf Client.");
 
     // 3. AcceptTcpClient() -> wartet bis Client kommt.
-    TcpClient client = listener.AcceptTcpClient();
+    TcpClient client = await listener.AcceptTcpClientAsync();
 
     // Console.Write(client + " - Client verbunden.");
     listener.Stop();
@@ -67,7 +67,7 @@ async Task StarteClient()
     {
         // -) Client starten
         TcpClient client = new TcpClient();
-        client.Connect("127.0.0.1", 12345);
+        await client.ConnectAsync("127.0.0.1", 12345); // localhost -- port 12345
 
         Console.WriteLine("Erfolgreich mit dem Server verbunden");
         
